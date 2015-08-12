@@ -73,10 +73,28 @@ func fixXMLAmps(badXML []byte) []byte {
 	return fixedXMLBuffer.Bytes()
 }
 
+var stopMatcher *regexp.Regexp = regexp.MustCompile(".* ([0-9]+)[ \t]*$")
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
         client := urlfetch.Client(c)
-        resp, err := client.Get("http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=emery&stopId=5319&routeTag=Hollis")
+
+	err := r.ParseForm()
+
+	if err != nil {
+		fmt.Fprintf(w, `{"text": "Error: Error parsing form data: %s", username: "Emery Go Round"}`, err.Error())
+		return
+	}
+
+	inputStop := "5319"
+	stopMatches := stopMatcher.FindStringSubmatch(r.Form.Get("text"))
+	if len(stopMatches) > 0 {
+		inputStop = stopMatches[1]
+	}
+
+	nextBusRequest := fmt.Sprintf("http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=emery&stopId=%s", inputStop)
+
+        resp, err := client.Get(nextBusRequest)
         //resp, err := client.Get("http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=sf-muni&stopId=17205&r=BUS")
 	
 	predictionResponse := Response{}
